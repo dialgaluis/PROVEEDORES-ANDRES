@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sistema Proveedores</title>
+<style>
+:root{
+  --bg:#f4f5f7;--card:#ffffff;--text:#1d2129;--muted:#6b7280;--line:#e3e6ea;
+  --accent:#2563eb;--accent-ink:#ffffff;--danger:#dc2626;--ok:#16a34a;--warn:#d97706;
+  --input:#ffffff;--soft:#eef2ff;--bar:#2563eb;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115;--card:#181b21;--text:#e8eaed;--muted:#9aa0a8;--line:#2a2f37;
+    --accent:#60a5fa;--accent-ink:#0b1220;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+    --input:#12151a;--soft:#1e2633;--bar:#60a5fa;--shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115;--card:#181b21;--text:#e8eaed;--muted:#9aa0a8;--line:#2a2f37;
+  --accent:#60a5fa;--accent-ink:#0b1220;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;
+  --input:#12151a;--soft:#1e2633;--bar:#60a5fa;--shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:80px}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 6px;max-width:720px;margin:0 auto}
+.top h1{font-size:18px;margin:0}
+.top .right{display:flex;align-items:center;gap:8px}
+.net{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap}
+.net i{width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block}
+.net.on i{background:var(--ok)}
+.net.off i{background:var(--danger)}
+.tabs{display:flex;max-width:720px;margin:0 auto}
+.tabs button{flex:1;border:0;background:none;color:var(--muted);font:600 14px system-ui,sans-serif;padding:12px 4px;border-bottom:3px solid transparent;cursor:pointer}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h2{font-size:16px;margin:0 0 10px}
+input,select{font:inherit;color:var(--text);background:var(--input);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+button{font:inherit}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;padding:9px 12px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.del{color:var(--danger)}
+.btn.sm{padding:6px 10px;font-size:14px}
+.btn.icon{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;align-items:center}
+.row > .grow{flex:1;min-width:0}
+.stack > * + *{margin-top:10px}
+.cat{border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:hidden}
+.cat-head{background:var(--soft);padding:10px}
+.cat-body{padding:10px}
+.sub{border-left:3px solid var(--accent);padding:8px 0 8px 10px;margin-bottom:12px}
+.sizes{margin-top:8px}
+.size-row{display:grid;grid-template-columns:1fr 1.2fr 36px;gap:6px;margin-top:6px;align-items:center}
+.size-row .lbl{font-size:12px;color:var(--muted)}
+.money{position:relative}
+.money input{padding-right:34px}
+.money span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+.muted{color:var(--muted);font-size:14px}
+.empty{color:var(--muted);text-align:center;padding:16px 0;font-size:14px}
+label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--input);color:var(--text);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left}
+.chip b{display:block}
+.chip small{color:var(--muted)}
+.chip.on{border-color:var(--accent);background:var(--soft);outline:1px solid var(--accent)}
+.line{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.line:last-child{border-bottom:0}
+.line .info{flex:1;min-width:0}
+.line .info b{display:block;font-size:15px;overflow-wrap:anywhere}
+.line .info small{color:var(--muted)}
+.qty{display:flex;align-items:center;gap:4px}
+.qty span{min-width:28px;text-align:center;font-weight:600}
+.sumrow{display:flex;justify-content:space-between;padding:6px 0}
+.sumrow.total{font-size:20px;font-weight:700;border-top:2px solid var(--line);margin-top:6px;padding-top:10px}
+.pay{display:flex;gap:6px}
+.pay button{flex:1;padding:9px 4px;font-size:14px}
+.pay button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.saldo{color:var(--warn);font-weight:700}
+.paid{color:var(--ok);font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:14px}
+.stat{grid-column:span 2;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 10px;box-shadow:var(--shadow)}
+.stat:nth-child(n+4){grid-column:span 3}
+.stat small{color:var(--muted);font-size:12px;display:block}
+.stat b{font-size:20px;display:block;margin-top:4px;overflow-wrap:anywhere}
+.rank{margin-top:10px}
+.rank .top-l{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.rank .top-l span:first-child{overflow-wrap:anywhere}
+.rank .top-l span:last-child{font-weight:600;white-space:nowrap}
+.track{height:10px;background:var(--soft);border-radius:6px;margin-top:4px;overflow:hidden}
+.fill{height:100%;background:var(--bar);border-radius:6px}
+.hist .line{align-items:flex-start}
+.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(120px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;transition:transform .25s;z-index:20;max-width:calc(100% - 32px);font-size:14px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.hidden{display:none !important}
+@media (max-width:420px){.stat b{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Pedidos</h1>
+    <div class="right">
+      <span class="net" id="net"><i></i><span>Conectando…</span></span>
+      <button class="btn sm" id="themeBtn" title="Cambiar tema">Tema: auto</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button data-tab="prov" class="on">Proveedor</button>
+    <button data-tab="comp">Comprador</button>
+    <button data-tab="dash">Dashboard</button>
+  </nav>
+</header>
+
+<main>
+  <!-- PROVEEDOR -->
+  <section id="tab-prov">
+    <div class="card">
+      <h2>Nueva categoría</h2>
+      <div class="row">
+        <input class="grow" id="newCat" placeholder="Ej: Chamarras ecocuero">
+        <button class="btn pri" id="addCat">Agregar</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Catálogo</h2>
+      <div id="catalog"><div class="empty">Cargando catálogo…</div></div>
+    </div>
+  </section>
+
+  <!-- COMPRADOR -->
+  <section id="tab-comp" class="hidden">
+    <div class="card stack">
+      <h2>Agregar producto</h2>
+      <div>
+        <label class="f" for="selCat">Categoría</label>
+        <select id="selCat"></select>
+      </div>
+      <div>
+        <label class="f" for="selSub">Subcategoría</label>
+        <select id="selSub"></select>
+      </div>
+      <div>
+        <label class="f">Talla</label>
+        <div class="chips" id="sizeChips"></div>
+      </div>
+      <div class="row">
+        <div style="width:110px">
+          <label class="f" for="qty">Cantidad</label>
+          <input id="qty" type="number" min="1" step="1" value="1" inputmode="numeric">
+        </div>
+        <div class="grow">
+          <label class="f">&nbsp;</label>
+          <button class="btn pri" id="addItem" style="width:100%">Agregar al pedido</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pedido actual</h2>
+      <div id="cart"></div>
+      <div class="sumrow total"><span>TOTAL</span><span id="cartTotal">Bs 0.00</span></div>
+    </div>
+
+    <div class="card stack">
+      <h2>Estado del pago</h2>
+      <div class="pay" id="payBtns">
+        <button class="btn" data-pay="none">Sin pago</button>
+        <button class="btn" data-pay="adelanto">Adelanto</button>
+        <button class="btn" data-pay="completo">Pagado completo</button>
+      </div>
+      <div id="advWrap" class="hidden">
+        <label class="f" for="advAmt">Monto del adelanto</label>
+        <div class="money"><input id="advAmt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"><span>Bs</span></div>
+      </div>
+      <div>
+        <div class="sumrow"><span>Pagado</span><span class="paid" id="paidAmt">Bs 0.00</span></div>
+        <div class="sumrow"><span>Saldo por pagar</span><span class="saldo" id="saldoAmt">Bs 0.00</span></div>
+      </div>
+      <div class="row">
+        <button class="btn del grow" id="clearCart">Vaciar pedido</button>
+        <button class="btn pri grow" id="confirm">Confirmar pedido</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dash" class="hidden">
+    <div class="stats">
+      <div class="stat"><small>Pedidos</small><b id="stOrders">0</b></div>
+      <div class="stat"><small>Unidades</small><b id="stUnits">0</b></div>
+      <div class="stat"><small>Total</small><b id="stTotal">Bs 0</b></div>
+      <div class="stat"><small>Cobrado</small><b class="paid" id="stPaid">Bs 0</b></div>
+      <div class="stat"><small>Saldo pendiente</small><b class="saldo" id="stSaldo">Bs 0</b></div>
+    </div>
+    <div class="card">
+      <h2>Top 10 productos (unidades)</h2>
+      <div id="rankProd"></div>
+    </div>
+    <div class="card">
+      <h2>Subcategorías más pedidas</h2>
+      <div id="rankSub"></div>
+    </div>
+    <div class="card hist">
+      <h2>Historial de pedidos</h2>
+      <div id="history"></div>
+      <button class="btn del" id="clearHist" style="width:100%;margin-top:10px">Borrar historial</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  doc, collection, onSnapshot, setDoc, addDoc, getDocs, writeBatch, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+/* ---------- Conexión a Firebase ---------- */
+const app = initializeApp({
+  apiKey: "AIzaSyD-wPm6CkAqUOHbrCurcAEmIDreYiZ6RlY",
+  authDomain: "sistema-proveedores-andres.firebaseapp.com",
+  projectId: "sistema-proveedores-andres",
+  storageBucket: "sistema-proveedores-andres.firebasestorage.app",
+  messagingSenderId: "1082380144370",
+  appId: "1:1082380144370:web:7d78c1213f64fae7798a6b"
+});
+let db;
+try {
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch (e) {
+  db = initializeFirestore(app, {});
+}
+const catalogRef = doc(db, "config", "catalogo");
+const ordersRef = collection(db, "pedidos");
+
+/* ---------- Utilidades ---------- */
+const LOCAL_KEY = "pedidos_carrito_v2";
+const THEME_KEY = "pedidos_theme";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const bs = n => "Bs " + num(n).toLocaleString("es-BO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const $ = id => document.getElementById(id);
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2000); }
+
+function sampleCatalog() {
+  const sizes = () => [["S",180],["M",190],["L",200],["XL",210]].map(t => ({ id: uid(), talla: t[0], precio: t[1] }));
+  return [{ id: uid(), name: "Chamarras ecocuero", subs: [
+    { id: uid(), name: "Cuello cadete negro", sizes: sizes() },
+    { id: uid(), name: "Cuello cadete café", sizes: sizes() }
+  ]}];
+}
+
+/* ---------- Estado ----------
+   catalog y orders vienen de Firebase (compartidos entre dispositivos).
+   cart y pay se guardan solo en este dispositivo (localStorage). */
+const S = { catalog: [], orders: [], cart: [], pay: { status: "none", amount: 0 }, loaded: false };
+try {
+  const raw = localStorage.getItem(LOCAL_KEY);
+  if (raw) { const l = JSON.parse(raw); S.cart = l.cart || []; S.pay = l.pay || S.pay; }
+} catch (e) {}
+function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ cart: S.cart, pay: S.pay })); } catch (e) {} }
+
+async function saveCatalog() {
+  try { await setDoc(catalogRef, { catalog: S.catalog, actualizado: serverTimestamp() }); }
+  catch (e) { console.error(e); toast("No se pudo guardar en la nube"); }
+}
+
+/* ---------- Indicador de conexión ---------- */
+function setNet(state) {
+  const n = $("net");
+  n.className = "net " + state;
+  n.lastElementChild.textContent = state === "on" ? "En línea" : state === "off" ? "Sin conexión" : "Conectando…";
+}
+window.addEventListener("offline", () => setNet("off"));
+window.addEventListener("online", () => setNet("wait"));
+
+/* ---------- Tema ---------- */
+const themes = ["auto","light","dark"], themeNames = { auto:"auto", light:"claro", dark:"oscuro" };
+let theme = "auto";
+try { theme = localStorage.getItem(THEME_KEY) || "auto"; } catch (e) {}
+function applyTheme() {
+  if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", theme);
+  $("themeBtn").textContent = "Tema: " + themeNames[theme];
+}
+$("themeBtn").onclick = () => {
+  theme = themes[(themes.indexOf(theme) + 1) % 3];
+  try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+  applyTheme();
+};
+applyTheme();
+
+/* ---------- Pestañas ---------- */
+let currentTab = "prov";
+const tabBtns = document.querySelectorAll(".tabs button");
+tabBtns.forEach(b => {
+  b.onclick = () => {
+    tabBtns.forEach(x => x.classList.toggle("on", x === b));
+    currentTab = b.dataset.tab;
+    ["prov","comp","dash"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== currentTab));
+    if (currentTab === "prov") renderCatalog();
+    if (currentTab === "comp") renderBuyer();
+    if (currentTab === "dash") renderDash();
+    window.scrollTo(0, 0);
+  };
+});
+
+/* ---------- PROVEEDOR ---------- */
+const findCat = id => S.catalog.find(c => c.id === id);
+const findSub = (cat, id) => cat && cat.subs.find(s => s.id === id);
+let catalogPending = false;   // llegó un cambio remoto mientras escribías
+
+function renderCatalog() {
+  const el = $("catalog");
+  // Si estás escribiendo en el catálogo, no lo redibujamos para no borrarte lo que escribes.
+  if (el.contains(document.activeElement) && document.activeElement.tagName === "INPUT") { catalogPending = true; return; }
+  catalogPending = false;
+  if (!S.loaded) { el.innerHTML = '<div class="empty">Cargando catálogo…</div>'; return; }
+  if (!S.catalog.length) { el.innerHTML = '<div class="empty">No hay categorías. Crea una arriba.</div>'; return; }
+  el.innerHTML = S.catalog.map(c => {
+    const subs = c.subs.map(s => {
+      const sizes = s.sizes.map(z =>
+        '<div class="size-row">' +
+          `<input data-act="talla" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" value="${esc(z.talla)}" placeholder="Talla">` +
+          `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="precio" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" value="${z.precio}" placeholder="Precio"><span>Bs</span></div>` +
+          `<button class="btn icon del" data-act="delSize" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" title="Borrar talla">×</button>` +
+        '</div>').join("");
+      return '<div class="sub">' +
+        `<div class="row"><input class="grow" data-act="renSub" data-c="${c.id}" data-s="${s.id}" value="${esc(s.name)}">` +
+        `<button class="btn sm del" data-act="delSub" data-c="${c.id}" data-s="${s.id}">Borrar</button></div>` +
+        '<div class="sizes">' +
+          (s.sizes.length ? '<div class="size-row"><span class="lbl">Talla</span><span class="lbl">Precio por unidad</span><span></span></div>' : '<div class="muted">Sin tallas</div>') +
+          sizes +
+          '<div class="size-row" style="margin-top:8px">' +
+            `<input placeholder="Nueva talla" id="nt-${s.id}">` +
+            `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Precio" id="np-${s.id}"><span>Bs</span></div>` +
+            `<button class="btn icon pri" data-act="addSize" data-c="${c.id}" data-s="${s.id}" title="Agregar talla">+</button>` +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+    return '<div class="cat">' +
+      `<div class="cat-head"><div class="row"><input class="grow" style="font-weight:600" data-act="renCat" data-c="${c.id}" value="${esc(c.name)}">` +
+      `<button class="btn sm del" data-act="delCat" data-c="${c.id}">Borrar</button></div></div>` +
+      '<div class="cat-body">' + (subs || '<div class="muted" style="margin-bottom:10px">Sin subcategorías</div>') +
+        `<div class="row"><input class="grow" placeholder="Nueva subcategoría (ej: Cuello cadete negro)" id="ns-${c.id}">` +
+        `<button class="btn pri sm" data-act="addSub" data-c="${c.id}">Agregar</button></div>` +
+      '</div></div>';
+  }).join("");
+}
+$("catalog").addEventListener("focusout", () => setTimeout(() => { if (catalogPending) renderCatalog(); }, 0));
+
+$("addCat").onclick = () => {
+  const v = $("newCat").value.trim();
+  if (!v) { toast("Escribe un nombre de categoría"); return; }
+  S.catalog.push({ id: uid(), name: v, subs: [] });
+  $("newCat").value = ""; $("newCat").blur();
+  renderCatalog(); saveCatalog(); toast("Categoría creada");
+};
+$("newCat").addEventListener("keydown", e => { if (e.key === "Enter") $("addCat").click(); });
+
+$("catalog").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const cat = findCat(b.dataset.c), sub = findSub(cat, b.dataset.s), act = b.dataset.act;
+  if (act === "delCat" && cat) {
+    if (!confirm(`¿Borrar la categoría "${cat.name}" con todas sus subcategorías y tallas?`)) return;
+    S.catalog = S.catalog.filter(c => c !== cat);
+  } else if (act === "addSub" && cat) {
+    const v = $("ns-" + cat.id).value.trim();
+    if (!v) { toast("Escribe un nombre de subcategoría"); return; }
+    cat.subs.push({ id: uid(), name: v, sizes: [] });
+  } else if (act === "delSub" && sub) {
+    if (!confirm(`¿Borrar la subcategoría "${sub.name}"?`)) return;
+    cat.subs = cat.subs.filter(s => s !== sub);
+  } else if (act === "addSize" && sub) {
+    const t = $("nt-" + sub.id).value.trim(), p = $("np-" + sub.id).value;
+    if (!t) { toast("Escribe la talla"); return; }
+    if (p === "" || num(p) < 0) { toast("Escribe un precio válido"); return; }
+    sub.sizes.push({ id: uid(), talla: t, precio: num(p) });
+  } else if (act === "delSize" && sub) {
+    sub.sizes = sub.sizes.filter(z => z.id !== b.dataset.z);
+  } else return;
+  if (document.activeElement) document.activeElement.blur();
+  renderCatalog(); saveCatalog();
+});
+
+$("catalog").addEventListener("change", e => {
+  const i = e.target, act = i.dataset.act; if (!act) return;
+  const cat = findCat(i.dataset.c), sub = findSub(cat, i.dataset.s);
+  const z = sub && sub.sizes.find(x => x.id === i.dataset.z);
+  const v = i.value.trim();
+  if (act === "renCat" && cat) { if (v) cat.name = v; else i.value = cat.name; }
+  else if (act === "renSub" && sub) { if (v) sub.name = v; else i.value = sub.name; }
+  else if (act === "talla" && z) { if (v) z.talla = v; else i.value = z.talla; }
+  else if (act === "precio" && z) { z.precio = Math.max(0, num(v)); i.value = z.precio; }
+  else return;
+  saveCatalog(); toast("Guardado");
+});
+
+$("catalog").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const id = e.target.id || "", sid = id.slice(3);
+  if (id.startsWith("ns-")) document.querySelector(`button[data-act="addSub"][data-c="${sid}"]`)?.click();
+  else if (id.startsWith("nt-") || id.startsWith("np-")) document.querySelector(`button[data-act="addSize"][data-s="${sid}"]`)?.click();
+  else if (e.target.dataset.act) e.target.blur();
+});
+
+/* ---------- COMPRADOR ---------- */
+const sel = { cat: null, sub: null, size: null };
+
+function renderBuyer() {
+  const sc = $("selCat");
+  if (!findCat(sel.cat)) sel.cat = S.catalog[0] ? S.catalog[0].id : null;
+  sc.innerHTML = S.catalog.length
+    ? S.catalog.map(c => `<option value="${c.id}"${c.id === sel.cat ? " selected" : ""}>${esc(c.name)}</option>`).join("")
+    : `<option value="">${S.loaded ? "— No hay categorías —" : "Cargando…"}</option>`;
+  renderSubs();
+  renderCart();
+}
+function renderSubs() {
+  const cat = findCat(sel.cat), ss = $("selSub");
+  if (!cat || !findSub(cat, sel.sub)) sel.sub = cat && cat.subs[0] ? cat.subs[0].id : null;
+  ss.innerHTML = cat && cat.subs.length
+    ? cat.subs.map(s => `<option value="${s.id}"${s.id === sel.sub ? " selected" : ""}>${esc(s.name)}</option>`).join("")
+    : '<option value="">— Sin subcategorías —</option>';
+  renderSizes();
+}
+function renderSizes() {
+  const sub = findSub(findCat(sel.cat), sel.sub), el = $("sizeChips");
+  if (!sub || !sub.sizes.some(z => z.id === sel.size)) sel.size = null;
+  if (!sub || !sub.sizes.length) { el.innerHTML = '<span class="muted">Sin tallas disponibles</span>'; return; }
+  el.innerHTML = sub.sizes.map(z =>
+    `<button class="chip${z.id === sel.size ? " on" : ""}" data-z="${z.id}"><b>${esc(z.talla)}</b><small>${bs(z.precio)}</small></button>`).join("");
+}
+$("selCat").onchange = function () { sel.cat = this.value; sel.sub = null; sel.size = null; renderSubs(); };
+$("selSub").onchange = function () { sel.sub = this.value; sel.size = null; renderSizes(); };
+$("sizeChips").addEventListener("click", e => {
+  const b = e.target.closest(".chip"); if (!b) return;
+  sel.size = b.dataset.z; renderSizes();
+});
+
+$("addItem").onclick = () => {
+  const cat = findCat(sel.cat), sub = findSub(cat, sel.sub);
+  const z = sub && sub.sizes.find(x => x.id === sel.size);
+  const q = Math.floor(num($("qty").value));
+  if (!z) { toast("Elige una talla"); return; }
+  if (q < 1) { toast("La cantidad debe ser al menos 1"); return; }
+  const key = cat.id + "|" + sub.id + "|" + z.id;
+  const ex = S.cart.find(l => l.key === key);
+  if (ex) { ex.qty += q; ex.precio = num(z.precio); ex.cat = cat.name; ex.sub = sub.name; ex.talla = z.talla; }
+  else S.cart.push({ key, cat: cat.name, sub: sub.name, talla: z.talla, precio: num(z.precio), qty: q });
+  $("qty").value = 1;
+  saveLocal(); renderCart(); toast(ex ? "Cantidad sumada" : "Agregado al pedido");
+};
+
+const cartTotal = () => S.cart.reduce((a, l) => a + l.qty * l.precio, 0);
+function paidAmount(total) {
+  if (S.pay.status === "completo") return total;
+  if (S.pay.status === "adelanto") return Math.min(num(S.pay.amount), total);
+  return 0;
+}
+
+function renderCart() {
+  $("cart").innerHTML = S.cart.length ? S.cart.map((l, i) =>
+    `<div class="line"><div class="info"><b>${esc(l.cat)} · ${esc(l.sub)}</b>` +
+    `<small>Talla ${esc(l.talla)} · ${bs(l.precio)} c/u</small><div style="font-weight:600;margin-top:2px">${bs(l.qty * l.precio)}</div></div>` +
+    `<div class="qty"><button class="btn icon" data-i="${i}" data-d="-1" aria-label="Menos">−</button><span>${l.qty}</span>` +
+    `<button class="btn icon" data-i="${i}" data-d="1" aria-label="Más">+</button></div>` +
+    `<button class="btn icon del" data-i="${i}" data-rm="1" title="Quitar">×</button></div>`
+  ).join("") : '<div class="empty">El pedido está vacío</div>';
+  renderPay();
+}
+$("cart").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]"); if (!b) return;
+  const i = +b.dataset.i, l = S.cart[i]; if (!l) return;
+  if (b.dataset.rm) S.cart.splice(i, 1);
+  else { l.qty += +b.dataset.d; if (l.qty < 1) S.cart.splice(i, 1); }
+  saveLocal(); renderCart();
+});
+
+function renderPay() {
+  const total = cartTotal(), paid = paidAmount(total);
+  $("cartTotal").textContent = bs(total);
+  document.querySelectorAll("#payBtns button").forEach(b => b.classList.toggle("on", b.dataset.pay === S.pay.status));
+  $("advWrap").classList.toggle("hidden", S.pay.status !== "adelanto");
+  if (document.activeElement !== $("advAmt")) $("advAmt").value = S.pay.amount ? S.pay.amount : "";
+  $("paidAmt").textContent = bs(paid);
+  $("saldoAmt").textContent = bs(total - paid);
+}
+$("payBtns").addEventListener("click", e => {
+  const b = e.target.closest("button[data-pay]"); if (!b) return;
+  S.pay.status = b.dataset.pay; saveLocal(); renderPay();
+  if (S.pay.status === "adelanto") $("advAmt").focus();
+});
+$("advAmt").addEventListener("input", function () { S.pay.amount = Math.max(0, num(this.value)); saveLocal(); renderPay(); });
+
+$("clearCart").onclick = () => {
+  if (!S.cart.length) return;
+  if (!confirm("¿Vaciar el pedido actual?")) return;
+  S.cart = []; S.pay = { status: "none", amount: 0 }; saveLocal(); renderCart();
+};
+
+$("confirm").onclick = async () => {
+  if (!S.cart.length) { toast("El pedido está vacío"); return; }
+  const btn = $("confirm"); btn.disabled = true;
+  const total = cartTotal(), paid = paidAmount(total);
+  const pedido = {
+    fecha: new Date().toISOString(),
+    items: S.cart.map(l => ({ cat: l.cat, sub: l.sub, talla: l.talla, precio: l.precio, qty: l.qty })),
+    total, estado: S.pay.status, pagado: paid
+  };
+  try {
+    // Con conexión se confirma al instante; sin conexión queda en cola y se envía al volver internet.
+    const p = addDoc(ordersRef, pedido);
+    S.cart = []; S.pay = { status: "none", amount: 0 };
+    saveLocal(); renderCart();
+    toast(navigator.onLine ? "Pedido confirmado" : "Pedido guardado; se enviará al volver la conexión");
+    await p;
+  } catch (e) {
+    console.error(e); toast("No se pudo confirmar el pedido");
+  } finally { btn.disabled = false; }
+};
+
+/* ---------- DASHBOARD ---------- */
+function rankHtml(list, unit) {
+  if (!list.length) return '<div class="empty">Aún no hay pedidos confirmados</div>';
+  const max = list[0].n || 1;
+  return list.map((r, i) =>
+    `<div class="rank"><div class="top-l"><span>${i + 1}. ${esc(r.name)}</span><span>${r.n} ${unit}</span></div>` +
+    `<div class="track"><div class="fill" style="width:${Math.max(2, r.n / max * 100)}%"></div></div></div>`).join("");
+}
+const estadoTxt = { none: "Sin pago", adelanto: "Adelanto", completo: "Pagado" };
+
+function renderDash() {
+  let units = 0, total = 0, paid = 0;
+  const prod = {}, sub = {};
+  S.orders.forEach(o => {
+    total += num(o.total); paid += num(o.pagado);
+    (o.items || []).forEach(it => {
+      units += it.qty;
+      const kp = `${it.cat} · ${it.sub} · ${it.talla}`, ks = `${it.cat} · ${it.sub}`;
+      prod[kp] = (prod[kp] || 0) + it.qty;
+      sub[ks] = (sub[ks] || 0) + it.qty;
+    });
+  });
+  const sorted = m => Object.keys(m).map(k => ({ name: k, n: m[k] })).sort((a, b) => b.n - a.n);
+  $("stOrders").textContent = S.orders.length;
+  $("stUnits").textContent = units;
+  $("stTotal").textContent = bs(total);
+  $("stPaid").textContent = bs(paid);
+  $("stSaldo").textContent = bs(total - paid);
+  $("rankProd").innerHTML = rankHtml(sorted(prod).slice(0, 10), "u.");
+  $("rankSub").innerHTML = rankHtml(sorted(sub), "u.");
+  const n = S.orders.length;
+  $("history").innerHTML = n ? S.orders.slice().reverse().map((o, idx) => {
+    const d = new Date(o.fecha);
+    const u = (o.items || []).reduce((a, it) => a + it.qty, 0);
+    return `<div class="line"><div class="info"><b>Pedido #${n - idx} · ${bs(o.total)}</b>` +
+      `<small>${d.toLocaleDateString("es-BO")} ${d.toLocaleTimeString("es-BO", { hour: "2-digit", minute: "2-digit" })} · ${u} u. · Pagado ${bs(o.pagado)} · Saldo ${bs(o.total - o.pagado)}</small></div>` +
+      `<span class="badge">${estadoTxt[o.estado] || ""}</span></div>`;
+  }).join("") : `<div class="empty">${S.loaded ? "Sin pedidos" : "Cargando…"}</div>`;
+}
+
+$("clearHist").onclick = async () => {
+  if (!S.orders.length) { toast("El historial ya está vacío"); return; }
+  if (!confirm("¿Borrar todo el historial de pedidos? Se borra para TODOS los dispositivos y no se puede deshacer.")) return;
+  try {
+    const snap = await getDocs(ordersRef);
+    let batch = writeBatch(db), count = 0;
+    for (const d of snap.docs) {
+      batch.delete(d.ref);
+      if (++count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+    }
+    await batch.commit();
+    toast("Historial borrado");
+  } catch (e) { console.error(e); toast("No se pudo borrar el historial"); }
+};
+
+/* ---------- Escuchar cambios en vivo ---------- */
+function rerender() {
+  if (currentTab === "prov") renderCatalog();
+  if (currentTab === "comp") renderBuyer();
+  if (currentTab === "dash") renderDash();
+}
+
+let seeded = false;
+onSnapshot(catalogRef, { includeMetadataChanges: true }, snap => {
+  setNet(snap.metadata.fromCache && !navigator.onLine ? "off" : snap.metadata.fromCache ? "wait" : "on");
+  if (!snap.exists()) {
+    // Primera vez: el servidor confirma que no hay catálogo → cargamos el ejemplo.
+    if (!snap.metadata.fromCache && !seeded) {
+      seeded = true; S.catalog = sampleCatalog(); S.loaded = true; saveCatalog(); rerender();
+    }
+    return;
+  }
+  S.catalog = Array.isArray(snap.data().catalog) ? snap.data().catalog : [];
+  S.loaded = true;
+  rerender();
+}, err => { console.error(err); setNet("off"); toast("Error al conectar con la base de datos"); });
+
+onSnapshot(ordersRef, snap => {
+  S.orders = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  if (currentTab === "dash") renderDash();
+}, err => console.error(err));
+
+renderCatalog();
+renderCart();
+</script>
+</body>
+</html>

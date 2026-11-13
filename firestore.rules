@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Catálogo compartido (un solo documento)
+    match /config/catalogo {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['catalog', 'actualizado'])
+                            && request.resource.data.catalog is list;
+      allow delete: if false;
+    }
+
+    // Pedidos confirmados
+    match /pedidos/{pedidoId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['fecha', 'items', 'total', 'estado', 'pagado'])
+                    && request.resource.data.items is list
+                    && request.resource.data.total is number
+                    && request.resource.data.pagado is number
+                    && request.resource.data.estado in ['none', 'adelanto', 'completo'];
+      allow update: if false;
+      allow delete: if true;
+    }
+
+    // Todo lo demás, cerrado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
