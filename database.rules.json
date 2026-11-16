@@ -3,7 +3,7 @@
     "catalogo": {
       ".read": true,
       ".write": true,
-      ".validate": "newData.hasChild('v')"
+      ".validate": "newData.child('v').isNumber() && newData.child('v').val() >= 2"
     },
     "pedidos": {
       ".read": true,

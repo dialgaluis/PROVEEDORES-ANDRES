@@ -56,19 +56,21 @@ button{font:inherit}
 .cat-body{padding:10px}
 .sub{border-left:3px solid var(--accent);padding:8px 0 8px 10px;margin-bottom:12px}
 .sizes{margin-top:8px}
-.size-row{display:grid;grid-template-columns:1fr 1.2fr 36px;gap:6px;margin-top:6px;align-items:center}
+/* Fila de talla: en celular 2 líneas (talla | ×  /  unidad | capa); en pantalla ancha 1 línea */
+.size-row{display:grid;grid-template-columns:1fr 1fr 36px;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line);align-items:center}
+.size-row .t{grid-column:1 / 3}
+.size-row .d{grid-column:3;grid-row:1}
+.size-row.head{padding:4px 0 0;border-bottom:0}
+.size-row.new{border-bottom:0;margin-top:4px}
 .size-row .lbl{font-size:12px;color:var(--muted)}
+@media (min-width:560px){
+  .size-row{grid-template-columns:1.6fr 1fr 1fr 36px}
+  .size-row .t{grid-column:auto}
+  .size-row .d{grid-column:auto;grid-row:auto;order:4}
+}
 .money{position:relative}
 .money input{padding-right:34px}
 .money span{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
-.combos{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
-.combos h4{margin:0 0 4px;font-size:13px;color:var(--muted);font-weight:600}
-.combo{background:var(--soft);border-radius:8px;padding:8px;margin-top:6px}
-.combo.new{background:none;border:1px dashed var(--line)}
-.combo-p{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
-.combo .lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:2px}
-.combo-ft{margin-top:6px;font-size:13px;color:var(--muted)}
-.chip-group-t{font-size:12px;color:var(--muted);margin:6px 0 0;width:100%}
 .muted{color:var(--muted);font-size:14px}
 .empty{color:var(--muted);text-align:center;padding:16px 0;font-size:14px}
 label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
@@ -249,13 +251,23 @@ const ordersRef = ref(db, "pedidos");
 const toArr = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === "object" ? Object.values(v) : []);
 const normCatalog = cats => toArr(cats).map(c => ({
   id: c.id, name: c.name || "",
-  subs: toArr(c.subs).map(s => ({ id: s.id, name: s.name || "", sizes: toArr(s.sizes), combos: toArr(s.combos) }))
+  subs: toArr(c.subs).map(s => ({
+    id: s.id, name: s.name || "",
+    sizes: toArr(s.sizes).map(z => ({ ...z, capa: z.capa != null ? num(z.capa) : round2(num(z.precio) * prendas(z.talla)) }))
+      // combinaciones guardadas con la versión anterior → pasan a ser filas de talla
+      .concat(toArr(s.combos).map(k => {
+        const n = prendas(k.comp);
+        return { id: k.id, talla: k.comp, precio: round2(num(k.precioCapa) / n), capa: num(k.precioCapa) };
+      }))
+  }))
 }));
 
 /* Combinaciones (capas): "2S+3M+3L+1XL" → 9 prendas.
-   Se guarda el precio por capa; el precio por unidad se calcula (capa ÷ prendas). */
+   Una talla suelta ("M") es 1 prenda. "2XL"…"6XL" se toman como tallas, no como combinaciones. */
 function parseComp(str) {
-  const parts = String(str || "").toUpperCase().replace(/\s+/g, "").split("+").filter(Boolean);
+  const clean = String(str || "").toUpperCase().replace(/\s+/g, "");
+  if (/^[2-6]XL$/.test(clean)) return null;
+  const parts = clean.split("+").filter(Boolean);
   if (!parts.length) return null;
   let units = 0; const norm = [];
   for (const p of parts) {
@@ -266,11 +278,13 @@ function parseComp(str) {
   return { units, comp: norm.join("+") };
 }
 const round2 = n => Math.round(n * 100) / 100;
-const comboUnits = k => (parseComp(k.comp) || { units: 1 }).units;
-const unitOf = k => round2(num(k.precioCapa) / comboUnits(k));
+function prendas(talla) { return (parseComp(talla) || { units: 1 }).units; }
 
 /* ---------- Utilidades ---------- */
 const LOCAL_KEY = "pedidos_carrito_v2";
+// Versión de los datos: la base de datos rechaza guardados de versiones viejas de la página,
+// para que una pestaña desactualizada no borre información nueva.
+const DATA_VERSION = 2;
 const THEME_KEY = "pedidos_theme";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -281,7 +295,7 @@ let toastT;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2000); }
 
 function sampleCatalog() {
-  const sizes = () => [["S",180],["M",190],["L",200],["XL",210]].map(t => ({ id: uid(), talla: t[0], precio: t[1] }));
+  const sizes = () => [["S",180],["M",190],["L",200],["XL",210]].map(t => ({ id: uid(), talla: t[0], precio: t[1], capa: t[1] }));
   return [{ id: uid(), name: "Chamarras ecocuero", subs: [
     { id: uid(), name: "Cuello cadete negro", sizes: sizes() },
     { id: uid(), name: "Cuello cadete café", sizes: sizes() }
@@ -299,8 +313,8 @@ try {
 function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ cart: S.cart, pay: S.pay })); } catch (e) {} }
 
 async function saveCatalog() {
-  try { await set(catalogRef, { v: 1, cats: S.catalog, actualizado: serverTimestamp() }); }
-  catch (e) { console.error(e); toast("No se pudo guardar en la nube"); }
+  try { await set(catalogRef, { v: DATA_VERSION, cats: S.catalog, actualizado: serverTimestamp() }); }
+  catch (e) { console.error(e); toast("No se pudo guardar. Recarga la página para usar la versión nueva."); }
 }
 
 /* ---------- Indicador de conexión ---------- */
@@ -357,25 +371,30 @@ function renderCatalog() {
   if (!S.catalog.length) { el.innerHTML = '<div class="empty">No hay categorías. Crea una arriba.</div>'; return; }
   el.innerHTML = S.catalog.map(c => {
     const subs = c.subs.map(s => {
+      const d = `data-c="${c.id}" data-s="${s.id}"`;
       const sizes = s.sizes.map(z =>
         '<div class="size-row">' +
-          `<input data-act="talla" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" value="${esc(z.talla)}" placeholder="Talla">` +
-          `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="precio" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" value="${z.precio}" placeholder="Precio"><span>Bs</span></div>` +
-          `<button class="btn icon del" data-act="delSize" data-c="${c.id}" data-s="${s.id}" data-z="${z.id}" title="Borrar talla">×</button>` +
+          `<input class="t" data-act="talla" ${d} data-z="${z.id}" value="${esc(z.talla)}" placeholder="Talla o combinación">` +
+          `<button class="btn icon del d" data-act="delSize" ${d} data-z="${z.id}" title="Borrar">×</button>` +
+          `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="precio" ${d} data-z="${z.id}" value="${z.precio}" placeholder="Unidad"><span>Bs</span></div>` +
+          `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="capa" ${d} data-z="${z.id}" value="${z.capa}" placeholder="Capa"><span>Bs</span></div>` +
         '</div>').join("");
       return '<div class="sub">' +
-        `<div class="row"><input class="grow" data-act="renSub" data-c="${c.id}" data-s="${s.id}" value="${esc(s.name)}">` +
-        `<button class="btn sm del" data-act="delSub" data-c="${c.id}" data-s="${s.id}">Borrar</button></div>` +
+        `<div class="row"><input class="grow" data-act="renSub" ${d} value="${esc(s.name)}">` +
+        `<button class="btn sm del" data-act="delSub" ${d}>Borrar</button></div>` +
         '<div class="sizes">' +
-          (s.sizes.length ? '<div class="size-row"><span class="lbl">Talla</span><span class="lbl">Precio por unidad</span><span></span></div>' : '<div class="muted">Sin tallas</div>') +
+          (s.sizes.length
+            ? '<div class="size-row head"><span class="lbl t">Talla o combinación</span><span class="d"></span><span class="lbl">Precio por unidad</span><span class="lbl">Precio por capa</span></div>'
+            : '<div class="muted">Sin tallas</div>') +
           sizes +
-          '<div class="size-row" style="margin-top:8px">' +
-            `<input placeholder="Nueva talla" id="nt-${s.id}">` +
-            `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Precio" id="np-${s.id}"><span>Bs</span></div>` +
-            `<button class="btn icon pri" data-act="addSize" data-c="${c.id}" data-s="${s.id}" title="Agregar talla">+</button>` +
+          '<div class="size-row new">' +
+            `<input class="t" placeholder="Nueva talla (M) o combinación (2S+3M+3L)" id="nt-${s.id}">` +
+            `<button class="btn icon pri d" data-act="addSize" ${d} title="Agregar">+</button>` +
+            `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Unidad" id="np-${s.id}"><span>Bs</span></div>` +
+            `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="Capa" id="nc-${s.id}"><span>Bs</span></div>` +
           '</div>' +
+          '<div class="muted" style="font-size:12px">Escribe el precio por unidad o por capa: el otro se calcula solo.</div>' +
         '</div>' +
-        comboHtml(c, s) +
       '</div>';
     }).join("");
     return '<div class="cat">' +
@@ -387,38 +406,13 @@ function renderCatalog() {
       '</div></div>';
   }).join("");
 }
-function comboHtml(c, s) {
-  const d = `data-c="${c.id}" data-s="${s.id}"`;
-  const list = s.combos.map(k =>
-    '<div class="combo">' +
-      `<div class="row"><input class="grow" data-act="cComp" ${d} data-k="${k.id}" value="${esc(k.comp)}" placeholder="Ej: 2S+3M+3L+1XL">` +
-      `<button class="btn icon del" data-act="delCombo" ${d} data-k="${k.id}" title="Borrar combinación">×</button></div>` +
-      '<div class="combo-p">' +
-        `<div><span class="lbl">Precio por unidad</span><div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="cUnit" ${d} data-k="${k.id}" value="${unitOf(k)}"><span>Bs</span></div></div>` +
-        `<div><span class="lbl">Precio por capa</span><div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" data-act="cCapa" ${d} data-k="${k.id}" value="${round2(num(k.precioCapa))}"><span>Bs</span></div></div>` +
-      '</div>' +
-      `<div class="combo-ft">${comboUnits(k)} prendas por capa</div>` +
-    '</div>').join("");
-  return '<div class="combos"><h4>Combinaciones (capas)</h4>' +
-    (s.combos.length ? list : '<div class="muted">Sin combinaciones</div>') +
-    '<div class="combo new">' +
-      `<input id="nk-${s.id}" placeholder="Nueva combinación (ej: 2S+3M+3L+1XL)">` +
-      '<div class="combo-p">' +
-        `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" id="nku-${s.id}" placeholder="Precio unidad"><span>Bs</span></div>` +
-        `<div class="money"><input type="number" min="0" step="0.01" inputmode="decimal" id="nkc-${s.id}" placeholder="Precio capa"><span>Bs</span></div>` +
-      '</div>' +
-      `<button class="btn pri sm" data-act="addCombo" ${d} style="width:100%;margin-top:6px">Agregar combinación</button>` +
-      '<div class="combo-ft" style="font-size:12px">Escribe el precio por unidad o por capa: el otro se calcula solo.</div>' +
-    '</div></div>';
-}
-
-// En el formulario de nueva combinación, calcula el otro precio mientras escribes
+// En la fila "nueva talla", calcula el otro precio mientras escribes
 $("catalog").addEventListener("input", e => {
-  const m = (e.target.id || "").match(/^nk(u|c)?-(.+)$/); if (!m) return;
-  const sid = m[2], pc = parseComp($("nk-" + sid).value); if (!pc) return;
-  const u = $("nku-" + sid), c = $("nkc-" + sid);
-  if (m[1] === "c") { if (c.value !== "") u.value = round2(num(c.value) / pc.units); }
-  else if (u.value !== "") c.value = round2(num(u.value) * pc.units);
+  const m = (e.target.id || "").match(/^n(t|p|c)-(.+)$/); if (!m) return;
+  const sid = m[2], n = prendas($("nt-" + sid).value);
+  const u = $("np-" + sid), c = $("nc-" + sid);
+  if (m[1] === "c") { if (c.value !== "") u.value = round2(num(c.value) / n); }
+  else if (u.value !== "") c.value = round2(num(u.value) * n);
 });
 
 $("catalog").addEventListener("focusout", () => setTimeout(() => { if (catalogPending) renderCatalog(); }, 0));
@@ -441,26 +435,24 @@ $("catalog").addEventListener("click", e => {
   } else if (act === "addSub" && cat) {
     const v = $("ns-" + cat.id).value.trim();
     if (!v) { toast("Escribe un nombre de subcategoría"); return; }
-    cat.subs.push({ id: uid(), name: v, sizes: [], combos: [] });
+    cat.subs.push({ id: uid(), name: v, sizes: [] });
   } else if (act === "delSub" && sub) {
     if (!confirm(`¿Borrar la subcategoría "${sub.name}"?`)) return;
     cat.subs = cat.subs.filter(s => s !== sub);
   } else if (act === "addSize" && sub) {
-    const t = $("nt-" + sub.id).value.trim(), p = $("np-" + sub.id).value;
-    if (!t) { toast("Escribe la talla"); return; }
-    if (p === "" || num(p) < 0) { toast("Escribe un precio válido"); return; }
-    sub.sizes.push({ id: uid(), talla: t, precio: num(p) });
+    let t = $("nt-" + sub.id).value.trim();
+    const p = $("np-" + sub.id).value, cp = $("nc-" + sub.id).value;
+    if (!t) { toast("Escribe la talla o combinación"); return; }
+    if (t.includes("+") && !parseComp(t)) { toast("Escribe la combinación así: 2S+3M+3L+1XL"); return; }
+    const pc = parseComp(t); if (pc) t = pc.comp;
+    const n = prendas(t);
+    let unit, capa;
+    if (cp !== "" && num(cp) >= 0) { capa = round2(num(cp)); unit = p !== "" ? round2(num(p)) : round2(capa / n); }
+    else if (p !== "" && num(p) >= 0) { unit = round2(num(p)); capa = round2(unit * n); }
+    else { toast("Escribe el precio por unidad o por capa"); return; }
+    sub.sizes.push({ id: uid(), talla: t, precio: unit, capa });
   } else if (act === "delSize" && sub) {
     sub.sizes = sub.sizes.filter(z => z.id !== b.dataset.z);
-  } else if (act === "addCombo" && sub) {
-    const pc = parseComp($("nk-" + sub.id).value);
-    if (!pc) { toast("Escribe la combinación así: 2S+3M+3L+1XL"); return; }
-    const capa = $("nkc-" + sub.id).value, unit = $("nku-" + sub.id).value;
-    const precioCapa = capa !== "" ? num(capa) : unit !== "" ? num(unit) * pc.units : NaN;
-    if (!(precioCapa >= 0)) { toast("Escribe el precio por unidad o por capa"); return; }
-    sub.combos.push({ id: uid(), comp: pc.comp, precioCapa: round2(precioCapa) });
-  } else if (act === "delCombo" && sub) {
-    sub.combos = sub.combos.filter(k => k.id !== b.dataset.k);
   } else return;
   if (document.activeElement) document.activeElement.blur();
   renderCatalog(); saveCatalog();
@@ -473,22 +465,23 @@ $("catalog").addEventListener("change", e => {
   const v = i.value.trim();
   if (act === "renCat" && cat) { if (v) cat.name = v; else i.value = cat.name; }
   else if (act === "renSub" && sub) { if (v) sub.name = v; else i.value = sub.name; }
-  else if (act === "talla" && z) { if (v) z.talla = v; else i.value = z.talla; }
-  else if (act === "precio" && z) { z.precio = Math.max(0, num(v)); i.value = z.precio; }
-  else if (["cComp", "cUnit", "cCapa"].includes(act)) {
-    const k = sub && sub.combos.find(x => x.id === i.dataset.k); if (!k) return;
-    if (act === "cComp") {
-      const pc = parseComp(v);
-      if (!pc) { toast("Formato: 2S+3M+3L+1XL"); i.value = k.comp; return; }
-      const unit = unitOf(k); k.comp = pc.comp; k.precioCapa = round2(unit * pc.units);
-    } else if (act === "cUnit") k.precioCapa = round2(Math.max(0, num(v)) * comboUnits(k));
-    else k.precioCapa = round2(Math.max(0, num(v)));
-    // Actualiza los otros campos de esta combinación sin redibujar todo
-    const box = i.closest(".combo");
-    box.querySelector('[data-act="cComp"]').value = k.comp;
-    box.querySelector('[data-act="cUnit"]').value = unitOf(k);
-    box.querySelector('[data-act="cCapa"]').value = k.precioCapa;
-    box.querySelector(".combo-ft").textContent = comboUnits(k) + " prendas por capa";
+  else if (["talla", "precio", "capa"].includes(act) && z) {
+    if (act === "talla") {
+      if (!v || (v.includes("+") && !parseComp(v))) { toast("Escribe la combinación así: 2S+3M+3L+1XL"); i.value = z.talla; return; }
+      const pc = parseComp(v); z.talla = pc ? pc.comp : v;
+      z.capa = round2(num(z.precio) * prendas(z.talla));            // mismo precio por unidad
+    } else if (act === "precio") {
+      z.precio = round2(Math.max(0, num(v)));
+      z.capa = round2(z.precio * prendas(z.talla));
+    } else {
+      z.capa = round2(Math.max(0, num(v)));
+      z.precio = round2(z.capa / prendas(z.talla));
+    }
+    // Actualiza los 3 campos de esta fila sin redibujar todo
+    const row = i.closest(".size-row");
+    row.querySelector('[data-act="talla"]').value = z.talla;
+    row.querySelector('[data-act="precio"]').value = z.precio;
+    row.querySelector('[data-act="capa"]').value = z.capa;
   }
   else return;
   saveCatalog(); toast("Guardado");
@@ -497,9 +490,8 @@ $("catalog").addEventListener("change", e => {
 $("catalog").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
   const id = e.target.id || "", sid = id.slice(3);
-  if (/^nk[uc]?-/.test(id)) document.querySelector(`button[data-act="addCombo"][data-s="${id.replace(/^nk[uc]?-/, "")}"]`)?.click();
-  else if (id.startsWith("ns-")) document.querySelector(`button[data-act="addSub"][data-c="${sid}"]`)?.click();
-  else if (id.startsWith("nt-") || id.startsWith("np-")) document.querySelector(`button[data-act="addSize"][data-s="${sid}"]`)?.click();
+  if (id.startsWith("ns-")) document.querySelector(`button[data-act="addSub"][data-c="${sid}"]`)?.click();
+  else if (/^n[tpc]-/.test(id)) document.querySelector(`button[data-act="addSize"][data-s="${sid}"]`)?.click();
   else if (e.target.dataset.act) e.target.blur();
 });
 
@@ -525,13 +517,13 @@ function renderSubs() {
 }
 function renderSizes() {
   const sub = findSub(findCat(sel.cat), sel.sub), el = $("sizeChips");
-  if (!sub || !(sub.sizes.some(z => z.id === sel.size) || sub.combos.some(k => k.id === sel.size))) sel.size = null;
-  if (!sub || (!sub.sizes.length && !sub.combos.length)) { el.innerHTML = '<span class="muted">Sin tallas disponibles</span>'; return; }
-  el.innerHTML = sub.sizes.map(z =>
-    `<button class="chip${z.id === sel.size ? " on" : ""}" data-z="${z.id}"><b>${esc(z.talla)}</b><small>${bs(z.precio)}</small></button>`).join("") +
-    (sub.combos.length ? '<div class="chip-group-t">Combinaciones (capas)</div>' + sub.combos.map(k =>
-      `<button class="chip${k.id === sel.size ? " on" : ""}" data-z="${k.id}"><b>${esc(k.comp)}</b>` +
-      `<small>${comboUnits(k)} prendas · ${bs(k.precioCapa)} la capa<br>${bs(unitOf(k))} c/u</small></button>`).join("") : "");
+  if (!sub || !sub.sizes.some(z => z.id === sel.size)) sel.size = null;
+  if (!sub || !sub.sizes.length) { el.innerHTML = '<span class="muted">Sin tallas disponibles</span>'; return; }
+  el.innerHTML = sub.sizes.map(z => {
+    const n = prendas(z.talla);
+    const info = n > 1 ? `${n} prendas · ${bs(z.capa)} la capa<br>${bs(z.precio)} c/u` : bs(z.precio);
+    return `<button class="chip${z.id === sel.size ? " on" : ""}" data-z="${z.id}"><b>${esc(z.talla)}</b><small>${info}</small></button>`;
+  }).join("");
 }
 $("selCat").onchange = function () { sel.cat = this.value; sel.sub = null; sel.size = null; renderSubs(); };
 $("selSub").onchange = function () { sel.sub = this.value; sel.size = null; renderSizes(); };
@@ -543,14 +535,14 @@ $("sizeChips").addEventListener("click", e => {
 $("addItem").onclick = () => {
   const cat = findCat(sel.cat), sub = findSub(cat, sel.sub);
   const z = sub && sub.sizes.find(x => x.id === sel.size);
-  const k = sub && !z && sub.combos.find(x => x.id === sel.size);
   const q = Math.floor(num($("qty").value));
-  if (!z && !k) { toast("Elige una talla o combinación"); return; }
+  if (!z) { toast("Elige una talla o combinación"); return; }
   if (q < 1) { toast("La cantidad debe ser al menos 1"); return; }
-  // Una talla suelta = 1 prenda; una capa = varias prendas (uds)
-  const item = z ? { tipo: "talla", talla: z.talla, precio: num(z.precio), uds: 1 }
-                 : { tipo: "capa", talla: "Capa " + k.comp, precio: num(k.precioCapa), uds: comboUnits(k) };
-  const key = cat.id + "|" + sub.id + "|" + (z || k).id;
+  // Una talla suelta = 1 prenda a precio por unidad; una combinación = 1 capa a precio por capa
+  const n = prendas(z.talla);
+  const item = n > 1 ? { tipo: "capa", talla: "Capa " + z.talla, precio: num(z.capa), uds: n }
+                     : { tipo: "talla", talla: z.talla, precio: num(z.precio), uds: 1 };
+  const key = cat.id + "|" + sub.id + "|" + z.id;
   const ex = S.cart.find(l => l.key === key);
   if (ex) { ex.qty += q; Object.assign(ex, item, { cat: cat.name, sub: sub.name }); }
   else S.cart.push({ key, cat: cat.name, sub: sub.name, ...item, qty: q });
