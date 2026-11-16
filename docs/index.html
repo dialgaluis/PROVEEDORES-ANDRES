@@ -220,9 +220,8 @@ label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  doc, collection, onSnapshot, setDoc, addDoc, getDocs, writeBatch, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+  getDatabase, ref, onValue, set, push, remove, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 /* ---------- Conexión a Firebase ---------- */
 const app = initializeApp({
@@ -231,16 +230,19 @@ const app = initializeApp({
   projectId: "sistema-proveedores-andres",
   storageBucket: "sistema-proveedores-andres.firebasestorage.app",
   messagingSenderId: "1082380144370",
-  appId: "1:1082380144370:web:7d78c1213f64fae7798a6b"
+  appId: "1:1082380144370:web:7d78c1213f64fae7798a6b",
+  databaseURL: "https://sistema-proveedores-andres-default-rtdb.europe-west1.firebasedatabase.app"
 });
-let db;
-try {
-  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
-} catch (e) {
-  db = initializeFirestore(app, {});
-}
-const catalogRef = doc(db, "config", "catalogo");
-const ordersRef = collection(db, "pedidos");
+const db = getDatabase(app);
+const catalogRef = ref(db, "catalogo");
+const ordersRef = ref(db, "pedidos");
+
+// Realtime Database borra las listas vacías; esto las devuelve siempre como lista.
+const toArr = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === "object" ? Object.values(v) : []);
+const normCatalog = cats => toArr(cats).map(c => ({
+  id: c.id, name: c.name || "",
+  subs: toArr(c.subs).map(s => ({ id: s.id, name: s.name || "", sizes: toArr(s.sizes) }))
+}));
 
 /* ---------- Utilidades ---------- */
 const LOCAL_KEY = "pedidos_carrito_v2";
@@ -272,7 +274,7 @@ try {
 function saveLocal() { try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ cart: S.cart, pay: S.pay })); } catch (e) {} }
 
 async function saveCatalog() {
-  try { await setDoc(catalogRef, { catalog: S.catalog, actualizado: serverTimestamp() }); }
+  try { await set(catalogRef, { v: 1, cats: S.catalog, actualizado: serverTimestamp() }); }
   catch (e) { console.error(e); toast("No se pudo guardar en la nube"); }
 }
 
@@ -522,7 +524,7 @@ $("confirm").onclick = async () => {
   };
   try {
     // Con conexión se confirma al instante; sin conexión queda en cola y se envía al volver internet.
-    const p = addDoc(ordersRef, pedido);
+    const p = push(ordersRef, pedido);
     S.cart = []; S.pay = { status: "none", amount: 0 };
     saveLocal(); renderCart();
     toast(navigator.onLine ? "Pedido confirmado" : "Pedido guardado; se enviará al volver la conexión");
@@ -576,13 +578,7 @@ $("clearHist").onclick = async () => {
   if (!S.orders.length) { toast("El historial ya está vacío"); return; }
   if (!confirm("¿Borrar todo el historial de pedidos? Se borra para TODOS los dispositivos y no se puede deshacer.")) return;
   try {
-    const snap = await getDocs(ordersRef);
-    let batch = writeBatch(db), count = 0;
-    for (const d of snap.docs) {
-      batch.delete(d.ref);
-      if (++count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
-    }
-    await batch.commit();
+    await remove(ordersRef);
     toast("Historial borrado");
   } catch (e) { console.error(e); toast("No se pudo borrar el historial"); }
 };
@@ -594,23 +590,26 @@ function rerender() {
   if (currentTab === "dash") renderDash();
 }
 
+// Indicador de conexión (lo da Firebase directamente)
+onValue(ref(db, ".info/connected"), snap => setNet(snap.val() === true ? "on" : (navigator.onLine ? "wait" : "off")));
+
 let seeded = false;
-onSnapshot(catalogRef, { includeMetadataChanges: true }, snap => {
-  setNet(snap.metadata.fromCache && !navigator.onLine ? "off" : snap.metadata.fromCache ? "wait" : "on");
-  if (!snap.exists()) {
-    // Primera vez: el servidor confirma que no hay catálogo → cargamos el ejemplo.
-    if (!snap.metadata.fromCache && !seeded) {
-      seeded = true; S.catalog = sampleCatalog(); S.loaded = true; saveCatalog(); rerender();
-    }
+onValue(catalogRef, snap => {
+  const val = snap.val();
+  if (val === null) {
+    // Primera vez: no hay catálogo en la base de datos → cargamos el ejemplo.
+    if (!seeded) { seeded = true; S.catalog = sampleCatalog(); S.loaded = true; saveCatalog(); rerender(); }
     return;
   }
-  S.catalog = Array.isArray(snap.data().catalog) ? snap.data().catalog : [];
+  S.catalog = normCatalog(val.cats);
   S.loaded = true;
   rerender();
 }, err => { console.error(err); setNet("off"); toast("Error al conectar con la base de datos"); });
 
-onSnapshot(ordersRef, snap => {
-  S.orders = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+onValue(ordersRef, snap => {
+  const val = snap.val() || {};
+  S.orders = Object.keys(val).map(id => ({ id, ...val[id], items: toArr(val[id].items) }))
+    .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
   if (currentTab === "dash") renderDash();
 }, err => console.error(err));
 

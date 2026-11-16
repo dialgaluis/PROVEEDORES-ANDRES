@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "catalogo": {
+      ".read": true,
+      ".write": true,
+      ".validate": "newData.hasChild('v')"
+    },
+    "pedidos": {
+      ".read": true,
+      ".write": true,
+      "$pedidoId": {
+        ".validate": "newData.hasChildren(['fecha', 'items', 'total', 'estado', 'pagado']) && newData.child('total').isNumber() && newData.child('pagado').isNumber() && newData.child('estado').val().matches(/^(none|adelanto|completo)$/)"
+      }
+    },
+    "$otro": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

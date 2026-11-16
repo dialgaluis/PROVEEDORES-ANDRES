@@ -1,13 +1,9 @@
 {
   "hosting": {
     "public": "docs",
-    "ignore": [
-      "firebase.json",
-      "**/.*"
-    ]
+    "ignore": ["firebase.json", "**/.*"]
   },
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+  "database": {
+    "rules": "database.rules.json"
   }
 }
