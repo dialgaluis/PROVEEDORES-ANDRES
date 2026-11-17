@@ -1,9 +1,9 @@
-# Sistema Proveedores Andres
+# PROVEEDORES-ANDRES
 
 Sistema de pedidos entre proveedor y comprador (en Bs), con catálogo, pedidos y dashboard compartidos en tiempo real mediante Firebase Realtime Database.
 
-- **Firebase Hosting:** https://sistema-proveedores-andres.web.app
-- **GitHub Pages:** https://dialgaluis.github.io/sistema-proveedores-andres/
+- **Firebase Hosting:** https://proveedores-andres.web.app
+- **GitHub Pages:** https://dialgaluis.github.io/PROVEEDORES-ANDRES/
 
 ## Estructura
 - `docs/index.html` — la aplicación completa (HTML + CSS + JS)
